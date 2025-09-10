@@ -1,5 +1,6 @@
 #include <iostream>
 #include <stdlib.h>
+#include <ncurses.h>
 #include <vector>
 #include <string>
 #include <thread>
@@ -20,12 +21,19 @@ void dibujarTabla(int ballX, int ballY)
             if (y == 0 || y == height - 1)
                 tabla[y][x] = '*'; // bordes superior e inferior
             else if (x == 0 || x == width - 1)
-                tabla[y][x] = '|'; // bordes laterales
+                tabla[y][x] = '*'; // bordes laterales
         }
     }
 
     // Poner la bola en posicion incial
     tabla[ballY][ballX] = 'o';
+
+    // paleta jugador (izquierda)
+    for (int py = 8; py <= 12; py++)
+    {
+        tabla[py][1] = '|';
+    }
+    // paleta
 
     // Imprimir la tabla
     for (const auto &row : tabla)
