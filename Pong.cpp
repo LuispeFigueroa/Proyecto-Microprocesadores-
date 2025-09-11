@@ -4,20 +4,37 @@
 #include <vector>
 #include <string>
 #include <thread>
+using namespace std;
 
-const int height = 20;
+const int height = 23;
 const int width = 40;
+
+void dibujarPaleta(int x, int yInicial, int size) {
+    for (int py = yInicial; py < yInicial + size; py++) {
+        mvaddch(py, x, '|');
+    }
+}
+
+void dibujarMarcador(int x){
+
+    int marcadorj = 0;    //marcador del jugador
+    int marcadorc = 0;    //marcador de la computadora
+
+    mvprintw(0, x, "Jugador: %d", marcadorj);
+    mvprintw(0, x + 12, "CPU: %d", marcadorc);
+}
+
 
 void dibujarTabla(int ballX, int ballY)
 {
 
     clear();
     // Dibujar los bordes
-    for (int y = 0; y < height; y++)
+    for (int y = 2; y < height; y++)
     {
         for (int x = 0; x < width; x++)
         {
-            if (y == 0 || y == height - 1)
+            if (y == 2 || y == height - 1)
                 mvaddch(y,x, '*'); // bordes superior e inferior
             else if (x == 0 || x == width - 1)
                 mvaddch(y,x,'*'); // bordes laterales
@@ -26,13 +43,14 @@ void dibujarTabla(int ballX, int ballY)
 
     // Poner la bola en posicion incial
     mvaddch(ballY, ballX, 'o');
+    
 
-    // paleta jugador (izquierda)
-    for (int py = 8; py <= 12; py++)
-    {
-        mvaddch(py, 1, '|');
-    }
-    // paleta
+    // Dibujar paletas usando la nueva función
+    dibujarPaleta(1, 10, 5);         // paleta izquierda
+    dibujarPaleta(width - 2, 10, 5); // paleta derecha
+
+    //Dibujar marcador
+    dibujarMarcador(11);
 
     // Imprimir la tabla
     refresh();
@@ -53,7 +71,7 @@ void menu(){
             
             //posicion inical de la pelota (en el centro)
             int ballX = width /2;
-            int ballY = height /2;
+            int ballY = (height /2)+1;
 
             // limpiar la pantalla antes de jugar
             system("clear");
