@@ -1,3 +1,7 @@
+//Proyecto 1 Programacion de MicroProcesadores
+//Juego Pong en la terminar con funciones dividas en hilos
+//Luis Pedro Figueroa 24087, Adair Velasquez 24586, Diego Gonzalez 24170
+
 #include <iostream>
 #include <stdlib.h>
 #include <ncurses.h>
