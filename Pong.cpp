@@ -112,62 +112,81 @@ void dibujarTabla(int ballX, int ballY)
     refresh();
 }
 
-void menu()
-{
-    int opcion = 0;
+void menu(){
+    int highlight = 0;
+    int choice;
+    int c;
 
-    while (true)
-    {
+    std::vector<std::string> options = {
+        "1. Jugar",
+        "2. Instrucciones",
+        "3. Salir"
+    };
+
+    keypad(stdscr, TRUE); // habilitar las teclas de flecha
+
+    while(true){
         clear();
-        mvprintw(2, 10, "=== Menu ===");
-        mvprintw(4, 10, "1. Jugar");
-        mvprintw(6, 10, "2. Instrucciones");
-        mvprintw(8, 10, "3. Salir");
-        opcion = getch(); // leer la opcion del usuario
-
-        if (opcion == '1')
-        {
-
-            // posicion inical de la pelota (en el centro)
-            int ballX = width / 2;
-            int ballY = (height / 2) + 1;
-
-            // limpiar la pantalla antes de jugar
-            system("clear");
-
-            // llamada a la funcion para dibujar la tabla
-            dibujarTabla(ballX, ballY);
-            getch(); // no regresa al menu hasta que se toque una tecla
+        // dibujar el menu
+        mvprintw(1, 10, "|--------------------|");
+        mvprintw(2, 10, "|        MENU        |");
+        mvprintw(3, 10, "|--------------------|");
+        
+        for(int i = 0; i < (int)options.size(); i++){
+            if(i == highlight){
+                attron(A_REVERSE); // resaltar la opcion seleccionada
+                mvprintw(5 + i*2, 10, "%s", options[i].c_str());
+                attroff(A_REVERSE);
+            }else{
+                mvprintw(5 + i*2, 10, "%s", options[i].c_str());
+            }
         }
-        else if (opcion == '2')
-        {
-            clear();
+        
+        mvprintw(5 + options.size()*2, 10, "|--------------------|");
+        mvprintw(5 + options.size()*2, 10, "Use las flechas para navegar y Enter para seleccionar");
 
-            mvprintw(2, 5, "Instrucciones del juego:");
-            mvprintw(4, 5, "1. Usa las teclas W y S para mover la paleta arriba y abajo.");
-            mvprintw(6, 5, "2. El objetivo es evitar que la pelota pase tu paleta.");
-            mvprintw(8, 5, "3. Cada vez que la pelota pase tu paleta, pierdes un punto.");
-            mvprintw(10, 5, "4. El juego termina cuando pierdes 5 puntos.");
-            mvprintw(12, 5, "Presiona cualquier tecla para volver al menu.");
-            refresh();
-            getch(); // espera a que el usuario presione una tecla para volver al menu
-        }
-        else if (opcion == '3')
-        {
-            clear();
-            mvprintw(2, 10, "Saliendo del juego...");
-            refresh();
-            break;
-        }
-        else
-        {
-            mvprintw(10, 10, "Opcion no valida. Intente de nuevo.");
-            refresh();
-            getch();
+        refresh();
+
+        c = getch();
+        switch(c){
+            case KEY_UP:
+                highlight = (highlight -1 + options.size()) % options.size();
+                break;
+            case KEY_DOWN:
+                highlight = (highlight +1) % options.size();
+                break;
+            case '\n':
+                choice = highlight;
+                if(choice == 0){
+                    //Jugar
+                    int ballX = width / 2;
+                    int ballY = (height / 2) + 1;
+                    clear();
+                    dibujarTabla(ballX, ballY);
+                    getch();
+                }else if(choice == 1){
+                    //Instrcciones
+                    clear();
+                    mvprintw(2,5, "Instrucciones del juego:");
+                    mvprintw(4,5,"1. Usa las teclas W y S para mover la paleta arriba y abajo.");
+                    mvprintw(6,5,"2. Evita que la pelota pase tu paleta.");
+                    mvprintw(8,5,"3. Cada vez que pase, pierdes un punto.");
+                    mvprintw(10,5,"4. El juego termina al perder 5 puntos.");
+                    mvprintw(12,5,"Presiona cualquier tecla para volver al menu.");
+                    refresh();
+                    getch();
+                }else if(choice == 2){
+                    //salir
+                    clear();
+                    mvprintw(2, 10, "Saliendo del juego...");
+                    refresh();
+                    getch();
+                    return;
+                }
+                break;
         }
     }
 }
-
 int main()
 {
 
