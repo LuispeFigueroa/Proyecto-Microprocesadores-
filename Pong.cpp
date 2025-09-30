@@ -10,21 +10,23 @@
 #include <string>
 #include <thread>
 #include <atomic>
+#include <mutex>
 using namespace std;
+using namespace std::chrono_literals;
 
-static const int height = 23;
-static const int width = 40;
-static const int top = 40;
-static const int bottom = height - 1;   
-static const int left = 40;
-static const int rigth = width - 1;   
+static const int kHeight = 23;
+static const int kWidth = 40;
+static const int kTop = 2;
+static const int kBottom = Kheight - 1;   
+static const int kLeft = 0;
+static const int kRigth = kWidth - 1;   
 
 
 struct Estadojuego{
 
     //Pelota
-    int ballX = width / 2; // en la mitad eje x 
-    int ballY = (height / 2) + 1; // se le suma 1, porque la linea 11 no es centrica, por la puntuacion 
+    int ballX = kWidth / 2; // en la mitad eje x 
+    int ballY = (kHeigth / 2) + 1; // se le suma 1, porque la linea 11 no es centrica, por la puntuacion 
     int velX = -1; // Velocidad en X
     int velY = 1;  // Velocidad en Y
 
@@ -33,7 +35,7 @@ struct Estadojuego{
     //cordendas de la paleta 1
     int p1x = 1; int p1y =10;
     //cordendas de la paleta 2
-    int p2x = width - 2; int p2y = 10;
+    int p2x = kWidth - 2; int p2y = 10;
 
     //Puntos
     int puntosJ = 0; //jugador
@@ -48,14 +50,14 @@ struct Estadojuego{
 
 void dibujarBordes(){
     //arriba y abajo
-    for (int x = left; x < rigth; x++){
+    for (int x = kLeft; x < kRigth; x++){
         mvaddch(top, x, '*');
         mvaddch(bottom, x, '*');
     }
     //lados
-    for (int y = top; y<bottom; y++){
-        mvaddch(y, left, '*');
-        mvaddch(y, rigth, '*');
+    for (int y = KTop; y<=kBottom; y++){
+        mvaddch(y, KLeft, '*');
+        mvaddch(y, kRigth, '*');
     }
 
 }
@@ -64,53 +66,52 @@ void dibujarBordes(){
 
 
 
-void dibujarPaleta(int x, int yInicial, int size)
+static void dibujarPaleta(int x, int y0, int size)
 {
-    for (int py = yInicial; py < yInicial + size; py++)
+    for (int y = y0; y < y0 + size; y++)
     {
-        mvaddch(py, x, '|');
+        if(y>kTop && y<kBottom) mvaddch(y,x, '|');
     }
 }
 
-void dibujarMarcador(int x)
-{
-
-    int marcadorj = 0; // marcador del jugador
-    int marcadorc = 0; // marcador de la computadora
-
-    mvprintw(0, x, "Jugador: %d", marcadorj);
-    mvprintw(0, x + 12, "CPU: %d", marcadorc);
+void dibujarMarcador( const estadoJuego& g){
+    mvprintw(0,2, "Jugador: %d CPU: %d (Q:salir)", g.puntosJ, g.puntosC);
+}
+// para asegurarnos que la paleta no se salga de los bordes
+static void clampPaleta(int& y, int size) {
+    if (y < kTop + 1) y = kTop + 1;
+    if (y + size >= kBottom) y = kBottom - size;
 }
 
-void dibujarTabla(int ballX, int ballY)
-{
-
-    clear();
-    // Dibujar los bordes
-    for (int y = 2; y < height; y++)
-    {
-        for (int x = 0; x < width; x++)
-        {
-            if (y == 2 || y == height - 1)
-                mvaddch(y, x, '*'); // bordes superior e inferior
-            else if (x == 0 || x == width - 1)
-                mvaddch(y, x, '*'); // bordes laterales
+//control paleta jugador
+void moverPaletaJugador(EstadoJuego* g){
+    while (g->juegoActivo && !g->salirJuego){
+        int ch = getch();
+        if(ch == 'q'|| ch=='Q'){g->juegoActivo = false; break;}
+        if (ch == 'w' || ch = 'W'){
+            lock_guard<mutex> lock(g->m);
+            g->.p1y--; clampPaleta(g->p1y, g->tamanoPaleta);
+        }else if(ch == 's' || ch == 'S'){
+            lock_guard<mutex> lock(g->m);
+            g->p1y++; clampPaleta(g->p1y, g->tamanoPaleta);
         }
+        this_thread::sleep_for(5ms);
     }
-
-    // Poner la bola en posicion incial
-    mvaddch(ballY, ballX, 'o');
-
-    // Dibujar paletas usando la nueva función
-    dibujarPaleta(1, 10, 5);         // paleta izquierda
-    dibujarPaleta(width - 2, 10, 5); // paleta derecha
-
-    // Dibujar marcador
-    dibujarMarcador(11);
-
-    // Imprimir la tabla
-    refresh();
 }
+
+void movePaletaComPu(EstadoJuego* g){
+    while(g->juegoActivo && !g->salirJuego){
+        lock_guard<mutex> lock(g->m);
+        int target = g->bally - g->tamanoPaleta / 2;
+        if(g->p2y < target) g->p2y++;
+        else if(g->p2y > target) g->p2y--;
+        clampPaleta(g->p2y, g->tamanoPaleta);
+    }
+        this_thread::sleep_for(25ms);
+}
+
+
+
 
 void menu(){
     int highlight = 0;
