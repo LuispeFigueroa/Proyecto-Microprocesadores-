@@ -111,6 +111,68 @@ void movePaletaComPu(EstadoJuego* g){
 }
 
 
+void renderLoop(EstadoJuego* g){
+    while (g->juegoActivo && !g ->salirJuego){
+        lock_guard<mutex> lock(g->m);
+        clear();
+        dibujarBordes();
+        dibujarMarcador(*g);
+        dibujarPaleta(g->p1x, g->p1y, g->tamanoPaleta);
+        dibujarPaleta(g->p2x, g->p2y, g->tamanoPaleta);
+        mvaddch(g->ballY, g->ballX, 'O');
+    }
+    refresh();
+    this_thread::sleep_for(16ms); //  60 fps
+}
+//setup cuando comineza la partida 
+void iniciarJuego(){
+    EstadoJuego g;
+
+    //configurar ncurses para el juego
+    nodelay(); // getch no bloqueante
+    keypad(stdscr, TRUE); //permitir que las teclas funciones
+    noecho();
+    curs_set(0); // ocultar mouse
+
+    g.juegoActivo = true;
+
+    thread tPlayer(moverPaletaJugador, &g);
+    thread tCPU(moverPaletaComPu, &g);
+    thread tBall(renderLoop, &g);
+    thread tScore(actualizarMarcador, &g);
+    thread tRender(renderLoop, &g);
+
+
+    //condicion para que la partida acabe con ganador
+    while(g.juegoActivo && !g.salirJuego){
+        {lock_guard<mutex> lock(g.m);
+        if(g.puntosJ >= 11 || g.puntosC >=11) g.juegoActivo = false;
+        }
+        this_thread::sleep_for(50ms);
+    }
+
+    g.juegoActivo = false;
+    if (tplayer.joinable()) tPlayer.join();
+    if (tCPU.joinable()) tCPU.join();
+    if (tBall.joinable()) tBall.join();
+    if (tScore.joinable()) tScore.join();
+    if (tRender.joinable()) tRender.join();
+
+    //mensaje cuando temrina la partida
+    nodelay(stdscr, false); 
+    clear();
+    mvprintw(5,8, "Juego Terminado!");
+    mvprint(7,8, "Apacha cualquier tecla para voler al menu")
+    refresh();
+    getch();
+
+
+
+
+
+
+}
+
 
 
 void menu(){
