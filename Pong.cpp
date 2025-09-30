@@ -40,15 +40,15 @@ struct Estadojuego{
     int puntosC = 0; // computadora
 
     //Cotrol del estado del juego 
-    <atomic<bool> juegoActivo; // Controla si el juego está activo
-    <atomic<bool> SalirJuego; // para salir del juego 
-    <atomic<bool> PuntosAnotados; // proteger los puntos de la partida 
+    atomic<bool> juegoActivo; // Controla si el juego está activo
+    atomic<bool> SalirJuego; // para salir del juego 
+    atomic<bool> PuntosAnotados; // proteger los puntos de la partida 
     mutex m;
 };
 
 void dibujarBordes(){
     //arriba y abajo
-    for (int x = left; x< rigth; x++){
+    for (int x = left; x < rigth; x++){
         mvaddch(top, x, '*');
         mvaddch(bottom, x, '*');
     }
