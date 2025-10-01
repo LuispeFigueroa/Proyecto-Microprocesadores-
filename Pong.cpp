@@ -180,13 +180,19 @@ void menu(){
     int choice;
     int c;
 
+
+    
+
+
     std::vector<std::string> options = {
         "1. Jugar",
         "2. Instrucciones",
         "3. Salir"
     };
 
+    nodelay(stdscr, FALSE); // getch bloqueante
     keypad(stdscr, TRUE); // habilitar las teclas de flecha
+
 
     while(true){
         clear();
@@ -206,7 +212,7 @@ void menu(){
         }
         
         mvprintw(5 + options.size()*2, 10, "|--------------------|");
-        mvprintw(5 + options.size()*2, 10, "Use las flechas para navegar y Enter para seleccionar");
+        mvprintw(5 + options.size()*2+1, 10, "Use las flechas para navegar y Enter para seleccionar");
 
         refresh();
 
@@ -219,14 +225,15 @@ void menu(){
                 highlight = (highlight +1) % options.size();
                 break;
             case '\n':
+            case KEY_ENTER:
+            case '\r':
                 choice = highlight;
                 if(choice == 0){
                     //Jugar
-                    int ballX = width / 2;
-                    int ballY = (height / 2) + 1;
                     clear();
-                    dibujarTabla(ballX, ballY);
-                    getch();
+                    refresh();
+                    iniciarJuego();
+                    
                 }else if(choice == 1){
                     //Instrcciones
                     clear();
@@ -247,6 +254,10 @@ void menu(){
                     return;
                 }
                 break;
+            case 'q':
+            case 'Q':
+                return;
+                
         }
     }
 }
@@ -258,10 +269,10 @@ int main()
     initscr();
     noecho();
     curs_set(0);
+    cbreak();
     // Menu principal
     menu();
 
     endwin(); // terminar  ncurses
 
-    // ancho y largo
 }
