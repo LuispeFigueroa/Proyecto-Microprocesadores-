@@ -110,6 +110,35 @@ void movePaletaComPu(EstadoJuego* g){
         this_thread::sleep_for(25ms);
 }
 
+void actualizarPuntos(EstadoJuego* g) {
+    auto resetBall = [](EstadoJuego* s, int dirX){
+        s->ballX = kWidth/2;
+        s->ballY = (kHeight/2)+1;
+        s->velX  = dirX;
+        s->velY  = (rand()%2==0)? -1 : +1;
+        s->puntoReciente = false;
+    };
+
+    while (g->juegoActivo && !g->salirJuego) {
+        bool gol = false;
+        int dirX = 0;
+
+        {
+            lock_guard<mutex> lock(g->m);
+            if (g->ballX <= kLeft)  { g->puntosC++; gol = true; dirX = +1; }
+            if (g->ballX >= kRight) { g->puntosJ++; gol = true; dirX = -1; }
+        }
+
+        if (gol) {
+            g->puntoReciente = true;
+            this_thread::sleep_for(400ms); // pequeña pausa
+            lock_guard<mutex> lock(g->m);
+            resetBall(g, dirX);
+        }
+
+        this_thread::sleep_for(10ms);
+    }
+}
 
 void renderLoop(EstadoJuego* g){
     while (g->juegoActivo && !g ->salirJuego){
