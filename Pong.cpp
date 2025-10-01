@@ -1,115 +1,107 @@
 // Proyecto 1 Programacion de MicroProcesadores
-// Juego Pong en la terminar con funciones dividas en hilos
+// Juego Pong en la terminal con funciones divididas en hilos
 // Luis Pedro Figueroa 24087, Adair Velasquez 24586, Diego Gonzalez 24170
-// g++ Pong.cpp -lncurses -o pong
+// Compilar: g++ Pong.cpp -o Pong -lncurses -pthread
 
 #include <iostream>
-#include <stdlib.h>
 #include <ncurses.h>
-#include <vector>
-#include <string>
 #include <thread>
 #include <atomic>
 #include <mutex>
+#include <vector>
+#include <string>
 using namespace std;
 using namespace std::chrono_literals;
 
+// Constantes del tablero
 static const int kHeight = 23;
 static const int kWidth = 40;
 static const int kTop = 2;
-static const int kBottom = Kheight - 1;   
+static const int kBottom = kHeight - 1;   
 static const int kLeft = 0;
-static const int kRigth = kWidth - 1;   
+static const int kRight = kWidth - 1;   
 
+// Estado del juego
+struct EstadoJuego {
+    int ballX = kWidth / 2; 
+    int ballY = (kHeight / 2) + 1; 
+    int velX = -1; 
+    int velY = 1;  
 
-struct Estadojuego{
-
-    //Pelota
-    int ballX = kWidth / 2; // en la mitad eje x 
-    int ballY = (kHeigth / 2) + 1; // se le suma 1, porque la linea 11 no es centrica, por la puntuacion 
-    int velX = -1; // Velocidad en X
-    int velY = 1;  // Velocidad en Y
-
-    //Paletas
     int tamanoPaleta = 5; 
-    //cordendas de la paleta 1
-    int p1x = 1; int p1y =10;
-    //cordendas de la paleta 2
-    int p2x = kWidth - 2; int p2y = 10;
+    int p1x = 1, p1y = 10;          
+    int p2x = kWidth - 2, p2y = 10; 
 
-    //Puntos
-    int puntosJ = 0; //jugador
-    int puntosC = 0; // computadora
+    int puntosJ = 0;
+    int puntosC = 0;
 
-    //Cotrol del estado del juego 
-    atomic<bool> juegoActivo; // Controla si el juego está activo
-    atomic<bool> SalirJuego; // para salir del juego 
-    atomic<bool> PuntosAnotados; // proteger los puntos de la partida 
+    atomic<bool> juegoActivo; 
+    atomic<bool> salirJuego; 
+    atomic<bool> puntoReciente; 
     mutex m;
 };
 
-void dibujarBordes(){
-    //arriba y abajo
-    for (int x = kLeft; x < kRigth; x++){
-        mvaddch(top, x, '*');
-        mvaddch(bottom, x, '*');
+// Dibujar bordes
+void dibujarBordes() {
+    for (int x = kLeft; x < kRight; x++) {
+        mvaddch(kTop, x, '*');
+        mvaddch(kBottom, x, '*');
     }
-    //lados
-    for (int y = KTop; y<=kBottom; y++){
-        mvaddch(y, KLeft, '*');
-        mvaddch(y, kRigth, '*');
-    }
-
-}
-
-
-
-
-
-static void dibujarPaleta(int x, int y0, int size)
-{
-    for (int y = y0; y < y0 + size; y++)
-    {
-        if(y>kTop && y<kBottom) mvaddch(y,x, '|');
+    for (int y = kTop; y <= kBottom; y++) {
+        mvaddch(y, kLeft, '*');
+        mvaddch(y, kRight, '*');
     }
 }
 
-void dibujarMarcador( const estadoJuego& g){
-    mvprintw(0,2, "Jugador: %d CPU: %d (Q:salir)", g.puntosJ, g.puntosC);
+// Dibujar paletas
+static void dibujarPaleta(int x, int y0, int size) {
+    for (int y = y0; y < y0 + size; y++) {
+        if (y > kTop && y < kBottom) mvaddch(y, x, '|');
+    }
 }
-// para asegurarnos que la paleta no se salga de los bordes
+
+// Dibujar marcador
+void dibujarMarcador(const EstadoJuego& g) {
+    mvprintw(0, 2, "Jugador: %d CPU: %d (Q:salir)", g.puntosJ, g.puntosC);
+}
+
+// Limitar paletas
 static void clampPaleta(int& y, int size) {
     if (y < kTop + 1) y = kTop + 1;
     if (y + size >= kBottom) y = kBottom - size;
 }
 
-//control paleta jugador
-void moverPaletaJugador(EstadoJuego* g){
-    while (g->juegoActivo && !g->salirJuego){
+// Paleta jugador
+void moverPaletaJugador(EstadoJuego* g) {
+    while (g->juegoActivo && !g->salirJuego) {
         int ch = getch();
-        if(ch == 'q'|| ch=='Q'){g->juegoActivo = false; break;}
-        if (ch == 'w' || ch = 'W'){
+        if (ch == 'q' || ch == 'Q') { g->juegoActivo = false; break; }
+        if (ch == 'w' || ch == 'W') {
             lock_guard<mutex> lock(g->m);
-            g->.p1y--; clampPaleta(g->p1y, g->tamanoPaleta);
-        }else if(ch == 's' || ch == 'S'){
+            g->p1y--; clampPaleta(g->p1y, g->tamanoPaleta);
+        } else if (ch == 's' || ch == 'S') {
             lock_guard<mutex> lock(g->m);
             g->p1y++; clampPaleta(g->p1y, g->tamanoPaleta);
         }
-        this_thread::sleep_for(5ms);
+        this_thread::sleep_for(10ms); 
     }
 }
 
-void movePaletaComPu(EstadoJuego* g){
-    while(g->juegoActivo && !g->salirJuego){
-        lock_guard<mutex> lock(g->m);
-        int target = g->bally - g->tamanoPaleta / 2;
-        if(g->p2y < target) g->p2y++;
-        else if(g->p2y > target) g->p2y--;
-        clampPaleta(g->p2y, g->tamanoPaleta);
+// Paleta CPU
+void moverPaletaCPU(EstadoJuego* g) {
+    while (g->juegoActivo && !g->salirJuego) {
+        {
+            lock_guard<mutex> lock(g->m);
+            int target = g->ballY - g->tamanoPaleta / 2;
+            if (g->p2y < target) g->p2y++;
+            else if (g->p2y > target) g->p2y--;
+            clampPaleta(g->p2y, g->tamanoPaleta);
+        }
+        this_thread::sleep_for(40ms); 
     }
-        this_thread::sleep_for(25ms);
 }
 
+// Movimiento pelota
 void moverPelota(EstadoJuego* g) {
     auto next = chrono::steady_clock::now();
     const auto step = 35ms;
@@ -118,35 +110,26 @@ void moverPelota(EstadoJuego* g) {
         next += step;
         {
             lock_guard<mutex> lock(g->m);
-
-            // mover
             g->ballX += g->velX;
             g->ballY += g->velY;
 
-            // techo/suelo
             if (g->ballY <= kTop + 1)     { g->ballY = kTop + 1;     g->velY *= -1; }
             if (g->ballY >= kBottom - 1)  { g->ballY = kBottom - 1;  g->velY *= -1; }
 
-            // paleta izquierda
             if (g->ballX == g->p1x + 1 &&
                 g->ballY >= g->p1y && g->ballY < g->p1y + g->tamanoPaleta) {
                 g->velX = +1;
-                int off = g->ballY - (g->p1y + g->tamanoPaleta/2);
-                if (off < 0) g->velY = -1; else if (off > 0) g->velY = +1;
             }
-
-            // paleta derecha
             if (g->ballX == g->p2x - 1 &&
                 g->ballY >= g->p2y && g->ballY < g->p2y + g->tamanoPaleta) {
                 g->velX = -1;
-                int off = g->ballY - (g->p2y + g->tamanoPaleta/2);
-                if (off < 0) g->velY = -1; else if (off > 0) g->velY = +1;
             }
         }
         this_thread::sleep_until(next);
     }
 }
 
+// Actualizar puntos
 void actualizarPuntos(EstadoJuego* g) {
     auto resetBall = [](EstadoJuego* s, int dirX){
         s->ballX = kWidth/2;
@@ -159,160 +142,122 @@ void actualizarPuntos(EstadoJuego* g) {
     while (g->juegoActivo && !g->salirJuego) {
         bool gol = false;
         int dirX = 0;
-
         {
             lock_guard<mutex> lock(g->m);
             if (g->ballX <= kLeft)  { g->puntosC++; gol = true; dirX = +1; }
             if (g->ballX >= kRight) { g->puntosJ++; gol = true; dirX = -1; }
         }
-
         if (gol) {
             g->puntoReciente = true;
-            this_thread::sleep_for(400ms); // pequeña pausa
+            this_thread::sleep_for(400ms);
             lock_guard<mutex> lock(g->m);
             resetBall(g, dirX);
         }
-
         this_thread::sleep_for(10ms);
     }
 }
 
+// Render loop
 void renderLoop(EstadoJuego* g){
-    while (g->juegoActivo && !g ->salirJuego){
-        lock_guard<mutex> lock(g->m);
-        clear();
-        dibujarBordes();
-        dibujarMarcador(*g);
-        dibujarPaleta(g->p1x, g->p1y, g->tamanoPaleta);
-        dibujarPaleta(g->p2x, g->p2y, g->tamanoPaleta);
-        mvaddch(g->ballY, g->ballX, 'O');
+    while (g->juegoActivo && !g->salirJuego){
+        {
+            lock_guard<mutex> lock(g->m);
+            clear();
+            dibujarBordes();
+            dibujarMarcador(*g);
+            dibujarPaleta(g->p1x, g->p1y, g->tamanoPaleta);
+            dibujarPaleta(g->p2x, g->p2y, g->tamanoPaleta);
+            mvaddch(g->ballY, g->ballX, 'O');
+        }
+        refresh();
+        this_thread::sleep_for(16ms); // ✅ 60 fps
     }
-    refresh();
-    this_thread::sleep_for(16ms); //  60 fps
 }
-//setup cuando comineza la partida 
+
+// Iniciar juego
 void iniciarJuego(){
     EstadoJuego g;
-
-    //configurar ncurses para el juego
-    nodelay(); // getch no bloqueante
-    keypad(stdscr, TRUE); //permitir que las teclas funciones
+    nodelay(stdscr, TRUE);
+    keypad(stdscr, TRUE);
     noecho();
-    curs_set(0); // ocultar mouse
+    curs_set(0);
 
     g.juegoActivo = true;
+    g.salirJuego = false;
 
     thread tPlayer(moverPaletaJugador, &g);
-    thread tCPU(moverPaletaComPu, &g);
-    thread tBall(renderLoop, &g);
-    thread tScore(actualizarMarcador, &g);
+    thread tCPU(moverPaletaCPU, &g);
+    thread tBall(moverPelota, &g);
+    thread tScore(actualizarPuntos, &g);
     thread tRender(renderLoop, &g);
 
-
-    //condicion para que la partida acabe con ganador
     while(g.juegoActivo && !g.salirJuego){
-        {lock_guard<mutex> lock(g.m);
-        if(g.puntosJ >= 11 || g.puntosC >=11) g.juegoActivo = false;
+        { lock_guard<mutex> lock(g.m);
+          if(g.puntosJ >= 11 || g.puntosC >=11) g.juegoActivo = false;
         }
         this_thread::sleep_for(50ms);
     }
 
     g.juegoActivo = false;
-    if (tplayer.joinable()) tPlayer.join();
+    if (tPlayer.joinable()) tPlayer.join();
     if (tCPU.joinable()) tCPU.join();
     if (tBall.joinable()) tBall.join();
     if (tScore.joinable()) tScore.join();
     if (tRender.joinable()) tRender.join();
 
-    //mensaje cuando temrina la partida
-    nodelay(stdscr, false); 
+    nodelay(stdscr, FALSE); 
     clear();
     mvprintw(5,8, "Juego Terminado!");
-    mvprint(7,8, "Apacha cualquier tecla para voler al menu")
+    mvprintw(7,8, "Presiona cualquier tecla para volver al menu");
     refresh();
     getch();
-
-
-
-
-
-
 }
 
-
-
+// Menú
 void menu(){
     int highlight = 0;
     int choice;
     int c;
-
-
-    
-
-
-    std::vector<std::string> options = {
-        "1. Jugar",
-        "2. Instrucciones",
-        "3. Salir"
-    };
-
-    nodelay(stdscr, FALSE); // getch bloqueante
-    keypad(stdscr, TRUE); // habilitar las teclas de flecha
-
+    vector<string> options = {"1. Jugar","2. Instrucciones","3. Salir"};
+    nodelay(stdscr, FALSE);
+    keypad(stdscr, TRUE);
 
     while(true){
         clear();
-        // dibujar el menu
         mvprintw(1, 10, "|--------------------|");
         mvprintw(2, 10, "|        MENU        |");
         mvprintw(3, 10, "|--------------------|");
-        
         for(int i = 0; i < (int)options.size(); i++){
             if(i == highlight){
-                attron(A_REVERSE); // resaltar la opcion seleccionada
+                attron(A_REVERSE);
                 mvprintw(5 + i*2, 10, "%s", options[i].c_str());
                 attroff(A_REVERSE);
             }else{
                 mvprintw(5 + i*2, 10, "%s", options[i].c_str());
             }
         }
-        
         mvprintw(5 + options.size()*2, 10, "|--------------------|");
-        mvprintw(5 + options.size()*2+1, 10, "Use las flechas para navegar y Enter para seleccionar");
-
+        mvprintw(5 + options.size()*2+1, 10, "Use flechas y Enter para seleccionar");
         refresh();
 
         c = getch();
         switch(c){
-            case KEY_UP:
-                highlight = (highlight -1 + options.size()) % options.size();
-                break;
-            case KEY_DOWN:
-                highlight = (highlight +1) % options.size();
-                break;
-            case '\n':
-            case KEY_ENTER:
-            case '\r':
+            case KEY_UP: highlight = (highlight -1 + options.size()) % options.size(); break;
+            case KEY_DOWN: highlight = (highlight +1) % options.size(); break;
+            case '\n': case KEY_ENTER: case '\r':
                 choice = highlight;
-                if(choice == 0){
-                    //Jugar
-                    clear();
-                    refresh();
-                    iniciarJuego();
-                    
-                }else if(choice == 1){
-                    //Instrcciones
+                if(choice == 0){ iniciarJuego(); }
+                else if(choice == 1){
                     clear();
                     mvprintw(2,5, "Instrucciones del juego:");
-                    mvprintw(4,5,"1. Usa las teclas W y S para mover la paleta arriba y abajo.");
-                    mvprintw(6,5,"2. Evita que la pelota pase tu paleta.");
-                    mvprintw(8,5,"3. Cada vez que pase, pierdes un punto.");
-                    mvprintw(10,5,"4. El juego termina al perder 5 puntos.");
-                    mvprintw(12,5,"Presiona cualquier tecla para volver al menu.");
+                    mvprintw(4,5,"1. Usa W y S para mover la paleta.");
+                    mvprintw(6,5,"2. Evita que la pelota pase tu lado.");
+                    mvprintw(8,5,"3. El CPU se mueve automaticamente.");
+                    mvprintw(10,5,"4. Gana el primero que llegue a 11 puntos.");
+                    mvprintw(12,5,"Presiona cualquier tecla para volver.");
                     refresh();
                     getch();
                 }else if(choice == 2){
-                    //salir
                     clear();
                     mvprintw(2, 10, "Saliendo del juego...");
                     refresh();
@@ -320,25 +265,18 @@ void menu(){
                     return;
                 }
                 break;
-            case 'q':
-            case 'Q':
-                return;
-                
+            case 'q': case 'Q': return;
         }
     }
 }
 
-int main()
-{
-
-    // inciar ncurses para dibujar la tabla
+// Main
+int main(){
     initscr();
     noecho();
     curs_set(0);
     cbreak();
-    // Menu principal
     menu();
-
-    endwin(); // terminar  ncurses
-
+    endwin();
 }
+
