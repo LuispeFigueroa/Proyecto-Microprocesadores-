@@ -10,8 +10,18 @@
 #include <mutex>
 #include <vector>
 #include <string>
+#include <cstdlib>
+#include <ctime>
+#include <chrono>
+
+
 using namespace std;
 using namespace std::chrono_literals;
+
+
+
+
+
 
 // Constantes del tablero
 static const int kHeight = 23;
@@ -20,6 +30,21 @@ static const int kTop = 2;
 static const int kBottom = kHeight - 1;   
 static const int kLeft = 0;
 static const int kRight = kWidth - 1;   
+//dificultades
+struct Dificultad{
+    int tickMs;// cuanto tiempo se tarda en moverse la paleta
+    int noise;// ruido vertical para que no 100% preciso el movimiento de la compu
+};
+
+constexpr Dificultad DIF_FACIL {80,2};
+constexpr Dificultad DIF_MEDIO {50,1};
+constexpr Dificultad DIF_DIFICIL {30,0};
+
+//empieza en normal predeterminadamente
+static Dificultad gDIF = DIF_MEDIO;
+static string gDifName = "Medio";
+
+
 
 // Estado del juego
 struct EstadoJuego {
@@ -89,22 +114,34 @@ void moverPaletaJugador(EstadoJuego* g) {
 
 // Paleta CPU
 void moverPaletaCPU(EstadoJuego* g) {
+    using clk = chrono::steady_clock;
+    auto next = clk::now();
+
+
     while (g->juegoActivo && !g->salirJuego) {
+        next += chrono::milliseconds(gDIF.tickMs);
         {
             lock_guard<mutex> lock(g->m);
-            int target = g->ballY - g->tamanoPaleta / 2;
-            if (g->p2y < target) g->p2y++;
-            else if (g->p2y > target) g->p2y--;
+
+            // objetivo seria la pelota mas el ruido de movimiento
+            int ruido = (gDIF.noise ==0) ? 0:(rand() % (2 * gDIF.noise + 1)) - gDIF.noise;
+            int target= g->ballY + ruido;
+
+            int center = g->p2y + g->tamanoPaleta / 2; // posicion de la pelota, mas la mitad de la paleta
+           if(target > center) g->p2y++; // si esta mas abajo de la bola sube
+           else if(target < center) g->p2y--; // si esta mas arriba de la bola baja
+
+           //asegurar que no se pase de los bordes 
             clampPaleta(g->p2y, g->tamanoPaleta);
         }
-        this_thread::sleep_for(40ms); 
+        this_thread::sleep_until(next); 
     }
 }
 
 // Movimiento pelota
 void moverPelota(EstadoJuego* g) {
     auto next = chrono::steady_clock::now();
-    const auto step = 35ms;
+    const auto step = 50ms;
 
     while (g->juegoActivo && !g->salirJuego) {
         next += step;
@@ -170,7 +207,7 @@ void renderLoop(EstadoJuego* g){
             mvaddch(g->ballY, g->ballX, 'O');
         }
         refresh();
-        this_thread::sleep_for(16ms); // ✅ 60 fps
+        this_thread::sleep_for(16ms); //  60 fps
     }
 }
 
@@ -213,12 +250,14 @@ void iniciarJuego(){
     getch();
 }
 
+
 // Menú
 void menu(){
     int highlight = 0;
     int choice;
     int c;
-    vector<string> options = {"1. Jugar","2. Instrucciones","3. Salir"};
+    
+    vector<string> options = {"1. Jugar","2. Instrucciones","3. Dificultad (Actual:" + gDifName+")","4. Salir"};
     nodelay(stdscr, FALSE);
     keypad(stdscr, TRUE);
 
@@ -246,7 +285,8 @@ void menu(){
             case KEY_DOWN: highlight = (highlight +1) % options.size(); break;
             case '\n': case KEY_ENTER: case '\r':
                 choice = highlight;
-                if(choice == 0){ iniciarJuego(); }
+                if(choice == 0){ iniciarJuego();
+                nodelay(stdscr, FALSE); }
                 else if(choice == 1){
                     clear();
                     mvprintw(2,5, "Instrucciones del juego:");
@@ -258,20 +298,32 @@ void menu(){
                     refresh();
                     getch();
                 }else if(choice == 2){
+                    if(gDifName =="Facil"){
+                        gDIF = DIF_MEDIO; gDifName = "Medio";
+                    }else if(gDifName == "Medio"){
+                        gDIF = DIF_DIFICIL; gDifName = "Dificil";
+                    }else{
+                        gDIF = DIF_FACIL; gDifName = "Facil";
+                    }
+                    options[2] = "3. Dificultad (Actual:" + gDifName+")";
+                }else if(choice == 3){
                     clear();
-                    mvprintw(2, 10, "Saliendo del juego...");
+                    mvprintw(5,10, "Saliendo del juego.");
                     refresh();
                     getch();
                     return;
                 }
-                break;
-            case 'q': case 'Q': return;
+                break; 
+            case 'q':case 'Q':
+                return;
+             
         }
     }
 }
 
 // Main
 int main(){
+    srand((unsigned)time(nullptr)); //para el ruido en la dificultad
     initscr();
     noecho();
     curs_set(0);
