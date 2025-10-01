@@ -110,6 +110,43 @@ void movePaletaComPu(EstadoJuego* g){
         this_thread::sleep_for(25ms);
 }
 
+void moverPelota(EstadoJuego* g) {
+    auto next = chrono::steady_clock::now();
+    const auto step = 35ms;
+
+    while (g->juegoActivo && !g->salirJuego) {
+        next += step;
+        {
+            lock_guard<mutex> lock(g->m);
+
+            // mover
+            g->ballX += g->velX;
+            g->ballY += g->velY;
+
+            // techo/suelo
+            if (g->ballY <= kTop + 1)     { g->ballY = kTop + 1;     g->velY *= -1; }
+            if (g->ballY >= kBottom - 1)  { g->ballY = kBottom - 1;  g->velY *= -1; }
+
+            // paleta izquierda
+            if (g->ballX == g->p1x + 1 &&
+                g->ballY >= g->p1y && g->ballY < g->p1y + g->tamanoPaleta) {
+                g->velX = +1;
+                int off = g->ballY - (g->p1y + g->tamanoPaleta/2);
+                if (off < 0) g->velY = -1; else if (off > 0) g->velY = +1;
+            }
+
+            // paleta derecha
+            if (g->ballX == g->p2x - 1 &&
+                g->ballY >= g->p2y && g->ballY < g->p2y + g->tamanoPaleta) {
+                g->velX = -1;
+                int off = g->ballY - (g->p2y + g->tamanoPaleta/2);
+                if (off < 0) g->velY = -1; else if (off > 0) g->velY = +1;
+            }
+        }
+        this_thread::sleep_until(next);
+    }
+}
+
 void actualizarPuntos(EstadoJuego* g) {
     auto resetBall = [](EstadoJuego* s, int dirX){
         s->ballX = kWidth/2;
